@@ -22,12 +22,15 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
+#include "scheduler.h"
+#include "output.h"
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+void SCH_Update(void);
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -50,8 +53,8 @@ UART_HandleTypeDef huart2;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -59,6 +62,19 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+uint8_t temp = 0;
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if(huart->Instance == USART2) {
+        HAL_UART_Receive_IT(&huart2, &temp, 1);
+        HAL_UART_Transmit(&huart2, &temp, 1, 50);
+    }
+}
+
+void timePrint(void) {
+    char str[100];
+    HAL_UART_Transmit(&huart2, (void*)str, sprintf(str, "%lu\r\n", HAL_GetTick()), 10);
+}
 
 /* USER CODE END 0 */
 
@@ -89,21 +105,36 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
   MX_TIM2_Init();
+  MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start_IT(&htim2);
+  HAL_UART_Receive_IT(&huart2, &temp, 1);
+  SCH_Init();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  SCH_AddTask(ledRedToggle, 1000, 0);
+  SCH_AddTask(ledYellowToggle, 0, 500);
+  SCH_AddTask(ledGreenToggle, 0, 1000);
+  SCH_AddTask(ledAquaToggle, 0, 1500);
+  SCH_AddTask(ledBlueToggle, 0, 2000);
+  SCH_AddTask(ledPinkToggle, 0, 2500);
+  SCH_AddTask(timePrint, 0, 10);
+  SCH_AddTask(timePrint, 0, 500);
+
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  SCH_Dispatch();
     /* USER CODE BEGIN 3 */
   }
+
+
   /* USER CODE END 3 */
 }
 
@@ -161,9 +192,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 1;
+  htim2.Init.Prescaler = 7999;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 39999 ;
+  htim2.Init.Period = 9;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -248,7 +279,12 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if (htim->Instance == TIM2) {
+	    SCH_Update();
+	}
 
+}
 /* USER CODE END 4 */
 
 /**
